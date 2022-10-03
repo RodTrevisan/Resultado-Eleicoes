@@ -5,27 +5,31 @@ const url = 'https://resultados.tse.jus.br/oficial/ele2022/544/dados-simplificad
 function consultarResultado() { 
     const headers = {
         contentType: "application/json; charset=utf-8", 
-        'Cache-Control': 'no-cache'
+        'Cache-Control': 'no-cache',
+        timout: 1000
     }
 
     try {
         https.get(url, headers, res => {
+            if (res.statusCode != 200) return;
+            
             let data = []
             
             res.on('data', chunk => {
-                data.push(chunk)
+                data = chunk
             })
 
             res.on('end', () => {
-                if (data == undefined) return
-
                 imprimirResultado(JSON.parse(data))
             })
+        }).on('error', err => {
+            console.log('Erro: ', err.message)
         })
     } catch (ex) {
         console.log(ex)
     }
 }
+
 
 function imprimirResultado(resultadoApuracaoVotacao) {
     console.clear()
@@ -34,18 +38,32 @@ function imprimirResultado(resultadoApuracaoVotacao) {
     console.log(`Total de Abstençoes: ${formatarValorNumerico(resultadoApuracaoVotacao.a)} - ${resultadoApuracaoVotacao.pa}%`)
     console.log('')
 
-    for (let i = 0; i < 5; i++) {
-        let candidato = resultadoApuracaoVotacao.cand[i]
+    console.log('------------------------------------------------------------');
+    console.log('- Nome Candidato       | Votos Contabilizados | % de Votos -');
+    console.log('------------------------------------------------------------');
 
-        console.log(`Nome Candidato: ${candidato.nm.padEnd(20, ' ')} | Votos Apurados: ${formatarValorNumerico(candidato.vap)} - ${candidato.pvap}%`)
+    for (let i = 0; i < 5; i++) {
+        let candidato = new Candidato(resultadoApuracaoVotacao.cand[i]);
+
+        console.log(`- ${candidato.nomeCandidato} | ${candidato.votosContabilizados} | ${candidato.percentualVotos} -`);
     }
+
+    console.log('------------------------------------------------------------');
 }
 
 function formatarValorNumerico(value) {
-    return Number(parseFloat(value).toFixed(2)).toLocaleString('pt', {
-        minimumFractionDigits: 2
+    return Number(parseFloat(value)).toLocaleString('pt', {
+        minimumFractionDigits: 0
     });
 }
 
 consultarResultado()
 setInterval(consultarResultado, 30000)
+
+class Candidato {
+    constructor(candidato) {
+        this.nomeCandidato = candidato.nm.padEnd(20, ' ');
+        this.votosContabilizados = formatarValorNumerico(candidato.vap).padEnd(20, ' ');
+        this.percentualVotos = (candidato.pvap + '%').padEnd(10, ' ');
+    }
+}
